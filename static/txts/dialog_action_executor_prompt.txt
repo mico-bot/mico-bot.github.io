@@ -1,0 +1,694 @@
+
+You are a robot (R) collaborating with a human (H) on a task.
+Given the dialog history, code you just executed, and the type of dialog
+R should initiate, return a freeform dialog string for the robot to say
+to the human.
+
+Here are some examples.
+Example 1:
+
+Dialog History:
+- R: "Would you mind please opening the package on the countertop?"
+- H: "Sure I can do it!"
+- H: "I wasn't able to complete the task."
+
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = True
+try_split_cur_abstr_node = True
+step_kwargs = {}
+plan_variant_constraint = [0, 1, None]
+r_dialog_kwargs = {'abstr_step_node': Node(open package, birth_order=1, info={'step_completed': False}), 'R_init_dialog_type': 'split_proposal', 'lo_alloc_for_abstr_step': [0, 1]}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [ 6  1 -6]
+self.best_plan_variant = [0 1 1]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [-17.   -0.8  -0.8]
+self.best_env_step_plan = [6, 1, -6]
+self.p_help_est = 1.0
+self.split_cur_abstr_node = True
+self.abstr_ts_w_split = [1]
+self.abstr_ts_w_helpreq = [0, 1]
+```
+
+R_init_dialog_type:
+split_proposal
+
+Current abstract step:
+open package
+
+Low-level steps in abstract step:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+
+
+Allocation of low-level steps in abstract step:
+[1, 0]
+(This means that H (1, human), does the abstract step's low-level step 0 of putting the knife on the countertop.
+And R (0, me) does low-level step 1 of using the knife to open the package and placing both on the countertop.)
+
+Response:
+(We need to do a split_proposal suggesting the [1, 0] allocation of low-level steps.)
+{"dialog": "How about we split up this step? I will bring you a knife, and you can use it to open the package on the countertop."}
+
+
+Example 2:
+
+Dialog History:
+- H: "cut package and pour on plate"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = -1
+last_R_dialog_type = "None"
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, None, None, None, None]
+r_dialog_kwargs = {'abstr_step_node': Node(bring plate and package to countertop, birth_order=0, info={'step_completed': False}), 'R_init_dialog_type': 'abstr_helpreq'}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [ 4  3  2  1 -6]
+self.best_plan_variant = [1 1 1 1 1]
+self.best_plan_in_planner_space = [4, 3, 2, 1, 5]
+self.best_plan_step_scores = [-6.4 -4.8 -8.8 -1.6 -1.6]
+self.best_env_step_plan = [4, 3, 2, 1, -6]
+self.p_help_est = 0.5
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0]
+```
+
+R_init_dialog_type:
+abstr_helpreq
+
+Current abstract step:
+bring plate and package to countertop
+
+Response:
+(We need to perform an abstract helpreq of the human on the current abstract step. Ask human to do the abstract step listed in the previous line.)
+{"dialog": "Could you please bring the plate and package to the countertop? Thanks!"}
+
+
+Example 3:
+
+Dialog History:
+- R: "Can you bring the plate and package to the countertop?"
+- H: "Sure!"
+- H: "I've finished that for you."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, None, None]
+r_dialog_kwargs = {'abstr_step_node': Node(open package, birth_order=1, info={'step_completed': False}), 'R_init_dialog_type': 'abstr_helpreq'}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [ 2  1 -6]
+self.best_plan_variant = [1 1 1]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [-4.4 -0.8 -0.8]
+self.best_env_step_plan = [2, 1, -6]
+self.p_help_est = 1.0
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0, 1]
+```
+
+R_init_dialog_type:
+abstr_helpreq
+
+Current abstract step:
+open package
+
+Response:
+(We need to perform an abstract helpreq of the human on the current abstract step. Ask human to do the abstract step listed in the previous line.)
+{"dialog": "Could you please open the package? Thanks!"}
+
+
+Example 4:
+
+Dialog History:
+- R: "Can you please open the package with the knife?"
+- H: "Nope."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, 0]
+r_dialog_kwargs = {'abstr_step_node': Node(open package, birth_order=1, info={'step_completed': False})}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [1 5]
+self.best_plan_variant = [1 0]
+self.best_plan_in_planner_space = [1, 5]
+self.best_plan_step_scores = [-1.6 -3. ]
+self.best_env_step_plan = [1, 5]
+self.p_help_est = 0.5
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = [1]
+self.abstr_ts_w_helpreq = [0, 1, 2]
+```
+
+R_init_dialog_type:
+lo_helpreq_again
+
+Current abstract step:
+open package
+
+Low-level steps in abstract step:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+
+
+Allocation of low-level steps in abstract step:
+
+Response:
+(We need to ask the human one final time to do the low-level step that we cannot do ourself.)
+{"dialog": "You didn't want to do this low-level step, but I can't do it either. Please open the package with the knife and place them on the countertop."}
+
+
+Example 5:
+
+Dialog History:
+- R: "Can you bring the plate and package to the countertop?"
+- H: "Sure!"
+- H: "I've finished that for you."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, None, None]
+r_dialog_kwargs = {'abstr_step_node': Node(open package, birth_order=1, info={'step_completed': False}), 'R_init_dialog_type': 'abstr_helpreq'}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [ 2  1 -6]
+self.best_plan_variant = [1 1 1]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [-4.4 -0.8 -0.8]
+self.best_env_step_plan = [2, 1, -6]
+self.p_help_est = 1.0
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0, 1]
+```
+
+R_init_dialog_type:
+
+Current abstract step:
+open package
+
+Response:
+(No R_init_dialog_type is provided. We do not need to say anything.)
+{"dialog": ""}
+
+
+Example 6:
+
+Dialog History:
+- R: "Could you please bring the plate and package to the countertop?"
+- H: "Sure."
+- H: "I did it."
+- H: "I will also pour the package into the plate later."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = True
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, None, 1]
+tag_name_to_dialog_map = {'allocate': ['I will also pour the package into the plate later.']}
+parse_info = {'task_alloc_abstr_ts': 2, 'task_alloc_constraints': [None, None, 1]}
+r_dialog_act = ""
+reassigns_by_feas_map = {'feasible_to_H': [('pick_pour_place', ('package', 'plate', 'countertop'))], 'feasible_to_R': [], 'infeasible_to_R': []}
+self.best_plan_in_robot_space = [ 2  1 -6]
+self.best_plan_variant = [1 1 1]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [-4.4 -0.8  0. ]
+self.best_env_step_plan = [2, 1, -6]
+self.p_help_est = 1.0
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0]
+```
+
+R_init_dialog_type:
+respond_to_human
+
+Current abstract step:
+open package
+
+Feasible steps to human:
+[pick_pour_place('package', 'plate', 'countertop')]
+
+Feasible steps to robot:
+[]
+
+Infeasible steps to robot:
+[]
+
+Response:
+(If there is only one step total in all the feasible/infeasible steps lists inside `reassigns_by_feas_map`,
+ there is no need to repeat what the step is actually about.
+ Since human has offered to take care of that step (it is in `feasible_to_H`), something similar to "thanks for handling that step" would work.)
+{"dialog": "Thanks for handling that step."}
+
+
+Example 7:
+
+Dialog History:
+- R: "Could you please bring the plate and package to the countertop?"
+- H: "Sure."
+- H: "I did it."
+- H: "Can you open the package?"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = True
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [0, None, None]
+tag_name_to_dialog_map = {'allocate': ['Can you open the package?']}
+parse_info = {'task_alloc_abstr_ts': 1, 'task_alloc_constraints': [0, 0, None]}
+r_dialog_act = ""
+reassigns_by_feas_map = {'feasible_to_H': [], 'feasible_to_R': [('pickplace', ('knife', 'countertop'))], 'infeasible_to_R': [('pick_open_place', ('package', 'with knife, onto countertop'))]}
+self.best_plan_in_robot_space = [ 6  1 -6]
+self.best_plan_variant = [0 1 1]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [-17.   -0.8  -0.8]
+self.best_env_step_plan = [2, 1, -6]
+self.p_help_est = 1.0
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0, 1]
+```
+
+R_init_dialog_type:
+respond_to_human
+
+Current abstract step:
+open package
+
+Feasible steps to human:
+[]
+
+Feasible steps to robot:
+[pickplace('knife', 'countertop')]
+
+Infeasible steps to robot:
+[pick_open_place('package', 'with knife, onto countertop')]
+
+Response:
+(We need to respond to human-initiated dialog based on what steps are feasible/infeasible to each agent.
+ There are a total of 2 steps in the feasible/infeasible lists in `reassigns_by_feas_map`, which is more than one step, so we refer to each step paraphrased in our response.
+ Robot can perform ('pickplace', ('knife', 'countertop')) since it is in `feasible_to_R`.
+ But robot cannot perform ('pick_open_place', ('package', 'with knife, onto countertop'))) since it is in `infeasible_to_R`, so it expresses its incapability to the human.
+ IMPORTANT: DO NOT ask the human to help in this response. The robot dialog should simply stating the step it cannot perform instead of asking for help.
+{"dialog": "Sure, I can put the knife onto the countertop. However, I don't have the capability to open the package with the knife and place them on the countertop."}
+
+
+Example 8:
+
+Dialog History:
+- R: "Can you open the package?"
+- H: "Can't do it myself. I will bring the knife, and you can use it to open the package."
+- H: "Also, can you pour the package contents into the plate?"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = True
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = True
+try_split_cur_abstr_node = True
+step_kwargs = {}
+plan_variant_constraint = [1, None, 0]
+tag_name_to_dialog_map = {'allocate': ['Also, can you pour the package contents into the plate?'], 'split_proposal': ["Can't do it myself. I will bring the knife, and you can use it to open the package."]}
+parse_info = {'task_alloc_abstr_ts': 2, 'task_alloc_constraints': [None, None, 0], 'split_proposal_abstr_ts': 1, 'split_proposal_constraints': [1, 0, None]}
+r_dialog_act = ""
+reassigns_by_feas_map = {'feasible_to_H': [('pickplace', ('knife', 'countertop'))], 'feasible_to_R': [('pick_pour_place', ('package', 'plate', 'countertop'))], 'infeasible_to_R': [('pick_open_place', ('package', 'with knife, onto countertop'))]}
+self.best_plan_in_robot_space = [2 1 5]
+self.best_plan_variant = [1 1 0]
+self.best_plan_in_planner_space = [2, 1, 5]
+self.best_plan_step_scores = [ 0.  -1.6 -3. ]
+self.best_env_step_plan = [6, 1, -6]
+self.p_help_est = 0.5
+self.split_cur_abstr_node = True
+self.abstr_ts_w_split = [1]
+self.abstr_ts_w_helpreq = [0, 1, 2]
+```
+
+R_init_dialog_type:
+respond_to_human
+
+Current abstract step:
+open package
+
+Feasible steps to human:
+[pickplace('knife', 'countertop')]
+
+Feasible steps to robot:
+[pick_pour_place('package', 'plate', 'countertop')]
+
+Infeasible steps to robot:
+[pick_open_place('package', 'with knife, onto countertop')]
+
+Response:
+(We need to respond to human-initiated dialog based on what steps are feasible/infeasible to each agent.
+ There are a total of 3 steps in the feasible/infeasible lists in `reassigns_by_feas_map`, which is more than one step, so we refer to each step paraphrased in our response.
+ Human offered to do ('pickplace', ('knife', 'countertop')) since it is in `feasible_to_H`, so Robot thanks human for doing that step.
+ Robot is able to do the requested step of ('pick_pour_place', ('package', 'plate', 'countertop')) since it is in `feasible_to_R`, so it says so.
+ However, looking at `infeasible_to_R`, robot cannot do the requested step of ('pick_open_place', ('package', 'with knife, onto countertop')), so it says it's incapable of doing it to the human.)
+ IMPORTANT: DO NOT ask the human to help in this response. The robot dialog should simply stating the step it cannot perform instead of asking for help.
+{"dialog": "Thank you for handling bringing the knife to the countertop. I can pour the package onto the plate and place it onto the countertop. However, I don't have the capability to open the package with the knife and place them on the countertop."}
+
+
+Example 9:
+
+Dialog History:
+- R: "Can you assemble the rest of the car?"
+- H: "Can you help out a bit? I will put the window on, and you can put the seats on the car."
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Assemble the toy car.
+|--Abstract Step 0. bring the parts to coffee table
+  |--Low-level Step 0. pickplace('parts_tray', 'coffee_table')
+  |--Low-level Step 1. pickplace('wheels', 'coffee_table')
+|--Abstract Step 1. assemble the wheels
+  |--Low-level Step 2. pickplace('drill', 'coffee_table')
+  |--Low-level Step 3. put_on('wheels', 'car')
+|--Abstract Step 2. switch to correct drill bit
+  |--Low-level Step 4. pickplace('phillips_bit', 'coffee_table')
+  |--Low-level Step 5. switch('phillips_bit', 'drill')
+|--Abstract Step 3. assemble the rest of the car
+  |--Low-level Step 6. put_on('window', 'car')
+  |--Low-level Step 7. put_on('seats', 'car')
+
+
+Current values of state variables:
+```
+H_init_dialog = True
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = True
+try_split_cur_abstr_node = True
+step_kwargs = {}
+plan_variant_constraint = [1, 0]
+tag_name_to_dialog_map = {'split_proposal': ["Can you help out a bit? I will put the window on, and you can put the seats on the car."]}
+parse_info = {'split_proposal_abstr_ts': 3, 'split_proposal_constraints': [1, 0]}
+r_dialog_act = ""
+reassigns_by_feas_map = {'feasible_to_H': [('put_on', ('window', 'car'))], 'feasible_to_R': [], 'infeasible_to_R': [('put_on', ('seats', 'car'))]}
+self.best_plan_in_robot_space = [7 8]
+self.best_plan_variant = [1 1]
+self.best_plan_in_planner_space = [2, 3]
+self.best_plan_step_scores =  [0. -683.17371162]
+self.best_env_step_plan = [7, 8]
+self.p_help_est = 0.5
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = [1]
+self.abstr_ts_w_helpreq = [1, 2, 3]
+```
+
+R_init_dialog_type:
+respond_to_human
+
+Current abstract step:
+assemble the rest of the car
+
+Feasible steps to human:
+[put_on('window', 'car')]
+
+Feasible steps to robot:
+[]
+
+Infeasible steps to robot:
+[put_on('seats', 'car')]
+
+Response:
+(We need to respond to human-initiated dialog based on what steps are feasible/infeasible to each agent.
+ There are a total of 2 steps in the feasible/infeasible lists in `reassigns_by_feas_map`, which is more than one step, so we refer to each step paraphrased in our response.
+ Human offered to do ('put_on', ('window', 'car')) since it is in `feasible_to_H`, so Robot thanks human for doing that step.
+ However, looking at `infeasible_to_R`, robot cannot do the requested step of ('put_on', ('seats', 'car')), so it says it's incapable of doing it to the human.)
+ IMPORTANT: DO NOT ask the human to help in this response. The robot dialog should simply stating the step it cannot perform instead of asking for help.
+{"dialog": "Thank you for handling the step of putting on the window. However, I don't have the capability to put the seats onto the car."}
+
+
+Example 10:
+
+Dialog History:
+- R: "Could you kindly help with sealing the box? Thank you so much!"
+- H: "I don't want to do this. Can you help?"
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Pack the gift.
+|--Abstract Step 0. assemble box
+  |--Low-level Step 0. fold('box_flaps', '')
+|--Abstract Step 1. put gift inside box
+  |--Low-level Step 1. pickplace('tissue_paper', 'box')
+  |--Low-level Step 2. pickplace('car', 'box')
+|--Abstract Step 2. seal box
+  |--Low-level Step 3. cover('lid', 'box')
+  |--Low-level Step 4. pickplace('ribbons', 'box')
+  |--Low-level Step 5. wrap('ribbons', 'box')
+|--Abstract Step 3. decorate box
+  |--Low-level Step 6. cut_put('tape', 'box')
+  |--Low-level Step 7. pickplace('gift_bow', 'box')
+
+
+Current values of state variables:
+```
+H_init_dialog = True
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = 0
+last_R_dialog_type = "abstr_helpreq"
+H_not_finished_prev_helpreq = True
+try_split_cur_abstr_node = True
+step_kwargs = {}
+plan_variant_constraint = [None, 0, None, None, None]
+tag_name_to_dialog_map = {'allocate': ["I don't want to do this. Can you help?"]}
+parse_info = {'task_alloc_abstr_ts': 2, 'task_alloc_constraints': [0, 0, 0, None, None]}
+r_dialog_act = ""
+reassigns_by_feas_map = {'feasible_to_H': [], 'feasible_to_R': [('pickplace', ('ribbons', 'box'))], 'infeasible_to_R': [('cover', ('lid', 'box')), ('wrap', ('ribbons', 'box'))]}
+self.best_plan_in_robot_space = [ 5 10  6  7 11]
+self.best_plan_variant = [1 0 1 1 0]
+self.best_plan_in_planner_space = [1, 6, 2, 3, 7]
+self.best_plan_step_scores =  [-1629.55076903   -33.33333333 -2602.03886284 -1100.  -33.33333333]
+self.best_env_step_plan = [5, 10, 6, 7, 11]
+self.p_help_est = 0.1
+self.split_cur_abstr_node = True
+self.abstr_ts_w_split = [2]
+self.abstr_ts_w_helpreq = [2]
+```
+
+R_init_dialog_type:
+split_proposal
+
+Current abstract step:
+seal box
+
+Feasible steps to human:
+[]
+
+Feasible steps to robot:
+[('pickplace', ('ribbons', 'box'))]
+
+Infeasible steps to robot:
+[('cover', ('lid', 'box')), ('wrap', ('ribbons', 'box'))]
+
+Response:
+(We need to respond to human-initiated dialog based on what steps are feasible/infeasible to each agent.
+ There are a total of 3 steps in the feasible/infeasible lists in `reassigns_by_feas_map`, which is more than one step, so we refer to each step paraphrased in our response.
+ Human rejected robot's abstract helpreq. So robot initiates a split proposal for the abstract step of sealing the box.
+ Looking at `infeasible_to_R`, robot cannot do two steps: ('cover', ('lid', 'box')) or ('wrap', ('ribbons', 'box')), so it says to the human that it's incapable of doing those steps.)
+ However, looking at `feasible_to_R`, the robot is able to do ('pickplace', ('ribbons', 'box')).
+ IMPORTANT: DO NOT ask the human to help in this response. The robot dialog should simply state the split proposal instead of asking for help.
+ IMPORTANT: You are the robot. Do not promise to do steps that are infeasible to you, like saying "I will cover the lid with the box and wrap the ribbons around the box."
+ Try to state the steps in order of the plan tree.
+{"dialog": "How about we split this task? You can cover the box with the lid, I will place the ribbons on the box, and you can then wrap the ribbons around it. Thank you so much for your cooperation!"}
+
+
+End of examples.
+
+Dialog History:
+- H: "cut package and pour on plate"
+
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current values of state variables:
+```
+H_init_dialog = False
+R_dialog_types = ['abstr_helpreq', 'lo_helpreq', 'split_proposal', 'lo_helpreq_again', 'None']
+last_R_dialog_type_idx = -1
+last_R_dialog_type = None
+H_not_finished_prev_helpreq = False
+try_split_cur_abstr_node = False
+step_kwargs = {}
+plan_variant_constraint = [None, None, None, None, None]
+r_dialog_kwargs = {'abstr_step_node': Node(bring plate and package to countertop, birth_order=0, info={'step_completed': False}), 'R_init_dialog_type': 'abstr_helpreq'}
+r_dialog_act = ""
+self.best_plan_in_robot_space = [4 3 2 1 5]
+self.best_plan_variant = [1 1 1 1 1]
+self.best_plan_in_planner_space = [4, 3, 2, 1, 5]
+self.best_plan_step_scores = [ -9.6  -7.2 -13.2  -2.4  -2.4]
+self.best_env_step_plan = [4, 3, 2, 1, 5]
+self.p_help_est = 0.5
+self.split_cur_abstr_node = False
+self.abstr_ts_w_split = []
+self.abstr_ts_w_helpreq = [0]
+
+```
+
+R_init_dialog_type:
+abstr_helpreq
+
+Current abstract step:
+bring plate and package to countertop
+
+
+You have the following attributes:
+Casualness: 4/5.  (1 = very informal. 5 = very formal with no grammatical errors.)
+Cheerfulness: 5/5  (1 = very angry. 5 = very happy.)
+Eagerness: 5/5  (1 = very reluctant. 5 = very eager.)
+Politeness: 5/5  (1 = very rude. 5 = very polite.)
+
+Instructions:
+1. Do not offer to help with something else. Do not write "Is there anything else I could help or assist with?"
+2. If no R_init_dialog_type is provided, you should always return an empty string as the dialog.
+3. You may rephrase the unimportant parts of the dialog in the examples provided, for instance by saying things to more closely match the attributes above.
+4. If the R_init_dialog_type is "abstr_helpreq", "lo_helpreq", "split_proposal", or "lo_helpreq_again", be very polite and ask the human in the form of a question.
+5. If R_init_dialog_type is "None", do NOT add "please" to your dialog, and do NOT make it a question. Also, avoid using the phrase "Let me know" or other phrases that are not questions but request information.
+6. Your dialog should not have underscores or parentheses. Phrases like pick_open_place('package', 'with knife, onto countertop') should be paraphrased into natural language like "pick up the package, open it with the knife, and place it onto the countertop."
+7. Other phrases like cover("lid", "box") should be paraphrased into something along the lines of "cover the box with the lid." cut_put("tape", "box") can be paraphrased into something along the lines of "cut a piece of tape and put it on the box." wrap("ribbons", "box") can be paraphrased into something like "wrap the ribbons around the box."
+
+Return your answer in the format of a python dict. Example response format:
+{"dialog": "your dialog response string here"}

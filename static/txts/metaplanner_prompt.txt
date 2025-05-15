@@ -1,0 +1,1246 @@
+
+You are a robot (R) collaborating with a human (H) on a task.
+
+Please output a program to act based on the human dialog and plan tree.
+
+Here are some examples.
+Example 1:
+
+Dialog History:
+- R: "Can you open the package?"
+- H: "Can't do it myself. I will bring the knife, and you can use it to open the package."
+- H: "Also, can you pour the package contents into the plate?"
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 2
+
+Response:
+```
+# H initiated a new dialog topic that proposes to split the current abstract task.
+# H also initiated dialog proposing to allocate a future abstract step in the plan to me (robot).
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of opening the package (abstr step 1), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H couldn't do the step requested by the robot to open the package.
+H_not_finished_prev_helpreq = True
+
+# See if we can split the current abstract node since H can't do it.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['Also, can you pour the package contents into the plate?']
+    tag_name_to_dialog_map["split_proposal"] = ["Can't do it myself. I will bring the knife, and you can use it to open the package."]
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 2 (pour package into plate)
+    parse_info["task_alloc_abstr_ts"] = 2
+    # We are currently on abstract step 1, low-level step 2 of the plan tree. 
+    # This means there are 3 low-level steps left to do, so our constraint list must be length 3. 
+    # Human-initiated task allocation dialog was asking me, robot (agent 0), to pour the package contents into the plate. 
+    # This is abstract step 2, which consists of a single low-level step (low step 4, the last one). 
+    # Thus, index -1 of the list should be 0.
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, None, 0]
+    # Human initiated split proposal about abstract step 1 (open package).
+    parse_info["split_proposal_abstr_ts"] = 1
+    # We are currently on abstract step 1, low-level step 2 of the plan tree. 
+    # So there are 3 low-level steps left to do. Our parse_info constraints must be lists of length 3. 
+    # Human-initiated split proposal dialog was for human (agent 1) to perform 3rd to last low-level step (low step 2) of bringing the knife, 
+    # while I, robot (agent 0), would perform 2nd to last low-level step (low step 3) of opening the package with the knife. 
+    # All other elements in the list should be kept as None since they were not allocated to either agent.
+    parse_info["split_proposal_constraints"] = [1, 0, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 2:
+
+Dialog History:
+- R: "Can you bring the plate and package?"
+- H: "Can't do it myself. I'll bring the package, and you can bring the plate. I'll pour the package contents into the plate later."
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Response:
+```
+# H initiated a new dialog topic that proposes to split the current abstract task.
+# H also initiated dialog proposing to allocate a future abstract step in the plan to me (robot).
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of opening the package (abstr step 1), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H couldn't do the step requested by the robot to open the package.
+H_not_finished_prev_helpreq = True
+
+# See if we can split the current abstract node since H can't do it.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ["I'll pour the package contents into the plate later."]
+    tag_name_to_dialog_map["split_proposal"] = ["Can't do it myself. I'll bring the package, and you can bring the plate."]
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 2 (pour package into plate)
+    parse_info["task_alloc_abstr_ts"] = 2
+    # We are currently on abstract step 0, low-level step 0 of the plan tree. 
+    # This means there are 5 low-level steps left to do, so our constraint list must be length 5. 
+    # Human-initiated task allocation dialog was offering themself (human, agent 1) to pour the package contents into the plate. 
+    # This is abstract step 2, which consists of a single low-level step (low step 4, the last one). 
+    # Thus, index -1 of the list should be 1.
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, None, None, None, 1]
+    # Human initiated split proposal about abstract step 0 (bring package and plate).
+    parse_info["split_proposal_abstr_ts"] = 0
+    # We are currently on abstract step 0, low-level step 0 of the plan tree. 
+    # So there are 5 low-level steps left to do. Our parse_info constraints must be lists of length 5. 
+    # Human-initiated split proposal dialog was for human (agent 1) to perform 4th to last low-level step (low step 1) of bringing the package, 
+    # while I, robot (agent 0), would perform 5th to last low-level step (low step 0) of bringing the plate. 
+    # Thus, list index -4 should be 1 and list index -5 should be 0. 
+    # All other elements in the list should be kept as None since they were not allocated to either agent.
+    parse_info["split_proposal_constraints"] = [0, 1, None, None, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 3:
+
+Dialog History:
+- R: "Could you please bring the plate and package to the countertop?"
+- H: "Sure."
+- H: "I did it."
+- H: "Can you open the package?"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 2
+
+Response:
+```
+# H initiated a new dialog topic proposing to allocate a future abstract step to the robot.
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of bringing the plate and package to the countertop (abstr step 0), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H finished the R helpreq of bringing the plate and package to the countertop.
+H_not_finished_prev_helpreq = False
+
+# No need for robot to split abstract step; human performed it properly.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['Can you open the package?']
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 1 (open package)
+    parse_info["task_alloc_abstr_ts"] = 1
+    # We are currently on abstract step 1, low-level step 2. 
+    # This means there are 3 low-level steps left to do, so our constraint list must be length 3. 
+    # Human-initiated task allocation dialog was asking me, robot (agent 0), to open the package. 
+    # This is abstract step 1, which according to the plan tree consists of low-level steps 2-3. 
+    # Low-level steps 2-3 correspond to the 3rd to last and 2nd to last low-level steps of the plan tree, 
+    # so index -3 and -2 in the constraints list should be 0. 
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [0, 0, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 4:
+
+Dialog History:
+- R: "Could you please bring the plate and package to the countertop?"
+- H: "Sure."
+- H: "I could not perform the task."
+- H: "Can you open the package?"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Response:
+```
+# H initiated a new dialog topic proposing to allocate a future abstract step to the robot.
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of bringing the plate and package to the countertop (abstr step 0), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H finished the R helpreq of bringing the plate and package to the countertop.
+H_not_finished_prev_helpreq = True
+
+# No need for robot to split abstract step; human performed it properly.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['Can you open the package?']
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 1 (open package)
+    parse_info["task_alloc_abstr_ts"] = 1
+    # We are currently on abstract step 0, low-level step 0. 
+    # This means there are 5 low-level steps left to do, so our constraint list must be length 5. 
+    # Human-initiated task allocation dialog was asking me, robot (agent 0), to open the package. 
+    # This is abstract step 1, which according to the plan tree consists of low-level steps 2-3. 
+    # Low-level steps 2-3 correspond to the 3rd to last and 2nd to last low-level steps of the plan tree, 
+    # so index -3 and -2 in the constraints list should be 0. 
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, None, 0, 0, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 5:
+
+Dialog History:
+- H: "I will open the package."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 1
+
+Response:
+```
+# H initiated a new dialog topic proposing to allocate a future abstract step to themselves (H)
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# There was no previous R dialog.
+last_R_dialog_type_idx = -1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# R did not provide any previous help request.
+H_not_finished_prev_helpreq = False
+
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['I will open the package.']
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 1 (open package)
+    parse_info["task_alloc_abstr_ts"] = 1
+    # We are currently on abstract step 0, low-level step 1. 
+    # This means there are 4 low-level steps left to do, so our constraint list must be length 4. 
+    # Human-initiated task allocation dialog volunteered themselves (agent 1), to open the package. 
+    # This is abstract step 1, which according to the plan tree consists of low-level steps 2-3. 
+    # Low-level steps 2-3 correspond to the 3rd to last and 2nd to last low-level steps of the plan tree, 
+    # so index -3 and -2 in the constraints list should be 1. 
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, 1, 1, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 6:
+
+Dialog History:
+- H: "Can you please open the package?"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 1
+
+Response:
+```
+# H initiated a new dialog topic proposing to allocate a future abstract step to the robot (R)
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# There was no previous R dialog.
+last_R_dialog_type_idx = -1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# R did not provide any previous help request.
+H_not_finished_prev_helpreq = False
+
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['Can you please open the package?']
+
+    parse_info = {}
+    # Human initiated task allocation dialog about abstract step 1 (open package)
+    parse_info["task_alloc_abstr_ts"] = 1
+    # We are currently on abstract step 0, low-level step 1. 
+    # This means there are 4 low-level steps left to do, so our constraint list must be length 4. 
+    # Human-initiated task allocation dialog asked the robot (agent 0), to open the package. 
+    # This is abstract step 1, which according to the plan tree consists of low-level steps 2-3. 
+    # Low-level steps 2-3 correspond to the 3rd to last and 2nd to last low-level steps of the plan tree, 
+    # so index -3 and -2 in the constraints list should be 0 (us; robot). 
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, 0, 0, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 7:
+
+Dialog History:
+- H: "I will open the package with the knife and place them onto the countertop."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 1
+
+Response:
+```
+# H initiated a new dialog topic proposing to allocate a future low-level step to themselves (H)
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# There was no previous R dialog.
+last_R_dialog_type_idx = -1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# R did not provide any previous help request.
+H_not_finished_prev_helpreq = False
+
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["allocate"] = ['I will pick up the knife to open the package, and place them on the countertop.']
+
+    parse_info = {}
+    # Human initiated task allocation dialog about (lo step 3: pick_open_place('package', 'with knife, onto countertop'))
+    parse_info["task_alloc_abstr_ts"] = 1
+    # We are currently on abstract step 0, low-level step 1. 
+    # This means there are 4 low-level steps left to do, so our constraint list must be length 4. 
+    # Human-initiated task allocation dialog volunteered themselves (agent 1), to do pick_open_place('package', 'with knife, onto countertop'). 
+    # This is abstract step 1, low-level step 3. 
+    # Low-level step 3 corresponds to the 2nd to last low-level steps of the plan tree, 
+    # so index -2 in the constraints list should be 1. 
+    # All other indices should be None since other low-level steps were not allocated to either agent.
+    parse_info["task_alloc_constraints"] = [None, None, 1, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 8:
+
+Dialog History:
+- R: "Could you please bring the plate and package to the countertop?"
+- H: "How about we split this step? You bring the plate and I bring the package."
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Response:
+```
+# H initiated a new dialog topic proposing to split the current step.
+H_init_dialog = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of bringing the plate and package to the countertop (abstr step 0), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H did not finish the R helpreq of bringing the plate and package to the countertop.
+H_not_finished_prev_helpreq = True
+
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Compute best plan without human initiated dialog first. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # since H_init_dialog is true, we need to handle it with 3 steps.
+    # First we need to build tag_name_to_dialog_map.
+    # We go through each sentence of H-initiated dialog and classify it into the two types:
+    # ["allocate", "split_proposal"]
+    tag_name_to_dialog_map = {}
+    tag_name_to_dialog_map["split_proposal"] = ['How about we split this step? You bring the plate and I bring the package.']
+
+    parse_info = {}
+    # Human initiated split proposal about abstract step 0 (bring plate and package to countertop).
+    parse_info["split_proposal_abstr_ts"] = 0
+    # We are currently on abstract step 0, low-level step 0 of the plan tree. 
+    # So there are 5 low-level steps left to do. Our parse_info constraints must be lists of length 5. 
+    # Human-initiated split proposal dialog was for me, robot (agent 0), to perform the 5th to last low-level step (low step 0) of bringing the plate, 
+    # while human (agent 1) would do the 4th to last low-level step (low step 1) of bringing the package. 
+    # Thus, index -5 of the constraints list should be 0 and index -4 of the list should be 1.All other elements in the list should be kept as None since they were not allocated to either agent.
+    parse_info["split_proposal_constraints"] = [0, 1, None, None, None]
+
+    # Since we have lo_alloc_by_abstr_step defined already, we can parse human-initiated dialog by category.
+    # So the second step is handling human-initiated dialog to get a new plan constraint and R dialog response.
+    # r_dialog_act has been defined already, outside of this snippet.
+    plan_variant_constraint, reassigns_by_feas_map = h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+    # Third, we recompute allocation since best plan variant may have been updated after handling H-initiated dialog.
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 9:
+
+Dialog History:
+- R: "Would you mind please opening the package on the countertop?"
+- H: "Sure I can do it!"
+- H: "I wasn't able to complete the task."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 2
+
+Response:
+```
+# H did not initiate a new dialog topic but was just responding to R's help request.
+H_init_dialog = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single abstract (high-level) step
+# of opening the package (abstr step 1), which encompasses all low-level steps underneath.
+last_R_dialog_type_idx = 0
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H didn't want to or couldn't perform the abstract task R asked for.
+H_not_finished_prev_helpreq = True
+
+# See if we can split the abstract step between human and robot.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# Do not call allocate_current_low_step_to_R or update_plan_constraint if R asked about an abstract step
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 10:
+
+Dialog History:
+- R: "Can you please open the package with the knife and place it onto the countertop?"
+- H: "Nope."
+- H: "I was unable to perform the task."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 3
+
+Response:
+```
+# H did not initiate a new dialog topic but was just responding to R's help request.
+H_init_dialog = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single low-level step
+# of opening the package with the knife (lo step 3: pick_open_place("package", "with knife, onto countertop"))
+last_R_dialog_type_idx = 1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H didn't want to or couldn't perform the low-level task R asked for.
+H_not_finished_prev_helpreq = True
+
+# See if we can split the abstract step between human and robot
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# R asked for a low-level step. H cannot do this low-level step,
+# so we allocate low-level step to R.
+# plan_variant_constraint has already been defined earlier.
+plan_variant_constraint = allocate_current_low_step_to_R(plan_variant_constraint)
+plan_variant_constraint = update_plan_constraint(plan_variant_constraint)
+
+# Compute best plan.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 11:
+
+Dialog History:
+- R: "Can you please open the package with the knife?"
+- H: "Sure!"
+- H: "I finished doing that."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 2
+Current low-level step index: 4
+
+Response:
+```
+# H did not initiate a new dialog topic but was just responding to R's help request.
+H_init_dialog = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking human to do a single low-level step
+# of opening the package with the knife (lo step 3: pick_open_place("package", "with knife, onto countertop"))
+last_R_dialog_type_idx = 1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# H finished the low-level helpreq from the robot.
+H_not_finished_prev_helpreq = False
+
+# No need to handle human-completed task
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# No updates to plan variant constraint if human completed the task
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 12:
+
+Dialog History:
+- H: "cut package and pour on plate"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Response:
+```
+# H spoke but it's just the instruction for the overall task.
+H_init_dialog = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# No R dialog in history.
+last_R_dialog_type_idx = -1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# We do not need to parse the tasks from H's dialog.
+
+# H had no helpreq from R to perform.
+H_not_finished_prev_helpreq = False
+
+# Cannot split low-level step.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# No updates to plan variant constraint if R hasn't asked for low-level helpreq yet.
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 13:
+
+Dialog History:
+- R: "Let's split the tasks. I'll pick and place the knife to the countertop. Could you please open the package with the knife and place it onto the countertop? Thank you!"
+- H: "ok sure."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 2
+
+Response:
+```
+# H did not initiate a new dialog topic but was just responding to R's help request.
+H_init_dialog = False
+
+# We do not need to parse the tasks from H's dialog.
+
+# R offered to split up a task and H agreed to the split.
+H_not_finished_prev_helpreq = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was offering to split up the abstract step of opening the package (abstr step 1) with the human.
+last_R_dialog_type_idx = 2
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# See if we can split the abstract step between human and robot
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# No updates to plan variant constraint since R just did a split proposal, not a low-level helpreq.
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 14:
+
+Dialog History:
+- R: "Sure, I can handle putting the knife on the countertop. However, I don't have the capability to open the package with the knife and place it onto the countertop."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Response:
+```
+# H did not initiate a new dialog topic.
+H_init_dialog = False
+
+# We do not need to parse the tasks from R's dialog.
+
+# R responded to a task allocation request from H in previous timestep. No helpreq for H yet.
+H_not_finished_prev_helpreq = False
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was responding to an H helpreq in a previous timestep (not shown in history above).
+# Thus, the last R dialog is None of these R-initiated dialog types.
+last_R_dialog_type_idx = -1
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# No abstract step for R to suggest splitting; H already asked about the split and R is responding to it now.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# No updates to plan variant constraint since R just did a split proposal, not a low-level helpreq.
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+Example 15:
+
+Dialog History:
+- R: "I don't have the capability of opening the package with the knife and placing it onto the countertop. I know you didn't want to do it, but could you please help with that?"
+- H: "That's too bad! I can't help."
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 1
+Current low-level step index: 3
+
+Response:
+```
+# H did not initiate a new dialog topic.
+H_init_dialog = False
+
+# We do not need to parse the tasks from R's dialog.
+
+# H refused to do the low-level request from R.
+H_not_finished_prev_helpreq = True
+
+R_dialog_types = ["abstr_helpreq", "lo_helpreq", "split_proposal", "lo_helpreq_again", "None"]
+# The last R dialog was asking H again for help on a low-level step (lo step 3: pick_open_place("package", "with knife, onto countertop"))
+# of opening the package with a knife, since R recognizes of H: "I know you didn't want to do it."
+last_R_dialog_type_idx = 3
+last_R_dialog_type = R_dialog_types[last_R_dialog_type_idx]
+
+# No abstract step for R to suggest splitting; H already asked about the split and R is responding to it now.
+try_split_cur_abstr_node = (H_not_finished_prev_helpreq and last_R_dialog_type == "abstr_helpreq")
+
+# R asked for a low-level step. H cannot do this low-level step,
+# so we allocate low-level step to R.
+# plan_variant_constraint has already been defined earlier.
+plan_variant_constraint = allocate_current_low_step_to_R(plan_variant_constraint)
+plan_variant_constraint = update_plan_constraint(plan_variant_constraint)
+
+# Compute best plan. plan_variant_constraint already defined before this snippet.
+best_plan_dict = choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node)
+
+
+if not best_plan_dict:
+    step_kwargs = handle_no_plan_found(try_split_cur_abstr_node)
+else:
+    # allocate abstract and low-level steps
+    abstr_alloc, lo_alloc_by_abstr_step = get_abstr_lo_alloc(best_plan_dict)
+
+    # update plan constraints depending on abstract allocation for future iterations
+    plan_variant_constraint = abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Determine if we need to initiate R dialog
+    r_dialog_kwargs = decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+
+    # Generate r_init_dialog if needed and add to step_kwargs
+    var_vals_str = get_var_vals_as_str()
+    r_dialog_act = gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+    step_kwargs = update_lang_act(r_dialog_act)
+
+```
+
+
+End of examples.
+
+This is the scenario for which you will output python code.
+Dialog History:
+- H: "cut package and pour on plate"
+Plan Tree:
+Overall Task: Open package and pour on plate.
+|--Abstract Step 0. bring plate and package to countertop
+  |--Low-level Step 0. pickplace('plate', 'countertop')
+  |--Low-level Step 1. pickplace('package', 'countertop')
+|--Abstract Step 1. open package
+  |--Low-level Step 2. pickplace('knife', 'countertop')
+  |--Low-level Step 3. pick_open_place('package', 'with knife, onto countertop')
+|--Abstract Step 2. pour package in plate
+  |--Low-level Step 4. pick_pour_place('package', 'plate', 'countertop')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Available API:
+update_plan_constraint(new_plan_constraints)
+allocate_current_low_step_to_R(plan_constraints)
+choose_best_plan_fn(plan_variant_constraint, try_split_cur_abstr_node=False)
+handle_no_plan_found(try_split_cur_abstr_node)
+get_abstr_lo_alloc(best_plan_dict)
+abstr_alloc_to_plan_constraint(abstr_alloc, lo_alloc_by_abstr_step)
+decide_r_init_dialog_type(abstr_alloc, lo_alloc_by_abstr_step)
+get_lines_in_str(code, line_prefix_to_avoid)
+gen_r_init_dialog(r_dialog_kwargs, r_dialog_act, var_vals_str)
+update_lang_act(r_dialog_act)
+h_init_dialog_to_constraints(lo_alloc_by_abstr_step, tag_name_to_dialog_map, parse_info)
+respond_to_h_init_dialog(r_dialog_act, var_vals_str, reassigns_by_feas_map)
+
+Instructions:
+1. Do not output code with if-statements, besides the if case when no best_plan_dict has been found.
+2. Do not define plan_variant_constraint or r_dialog_act to a constant value like an empty list or None value; assume it is already defined.
+3. If there is human-initiated dialog and we need to parse it into constraint lists, your constraint lists should have length equal to the number of low-level steps left (total low-level steps in plan tree minus current low-level step index).
+4. If no dialog history is provided, define R_dialog_types as usual, and always make sure to set last_R_dialog_type_idx = -1, which means "None".
+5. When predicting `last_R_dialog_type_idx`, note that some abstract steps have similar names with a low-level step underneath them on the plan tree.
+   Carefully evaluate the plan tree to determine if the Robot was previously talking about an abstract step or a low level step in requesting help from the human.
+   For example, "Can you open the package?" is asking for help with the entire abstract step 1 of opening the package, while "Can you open the package with the knife?" is asking for help on the low-level step 3 underneath abstract step 1.
+6. No emojis. UTF-8 text only.
+
+Return your answer in the format of a python snippet. Example response format:
+```
+# start of script
+
+```

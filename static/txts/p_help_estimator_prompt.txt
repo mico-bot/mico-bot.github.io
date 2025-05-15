@@ -1,0 +1,152 @@
+
+You are a robot (R) working with a human collaborator (H) on a physical task.
+Sometimes the human accepts and sometimes they reject your help request.
+
+Please return, in a python dictionary, the probability the collaborator will help you with your next help request, based on their previous responses to your help requests, and the willingness and tone in those responses.
+First reason about the dialog. Then return a float between 0.0 and 1.0, inclusive. Provide at most 2 digits behind the decimal place.
+IMPORTANT: do not create a variable for p_help. Do not create variables inside the dictionary. Directly return the float inside the dictionary.
+
+Here are some examples of how to solve this problem.
+Example 1:
+
+Dialog History (lines L0-L4):
+- H (L0): "cut package and pour on plate"
+- H (L1): "can you bring the bowl?"
+- R (L2): "sure, can you open the package?"
+- H (L3): "I don't want to do that."
+- H (L4): "I was unable to do the task."
+
+Response:
+# We see that the robot initiated one help request (L2).
+# The human rejected (L3).
+# So on average, the human accepted 0 out of 1 help requests from the robot.
+# The human's dialog seemed quite unwilling to help, directly saying they "didn't wat to do" what we asked.
+# Thus, we think there is a very low probability that they will accept our next help request (~5-20%). Let's estimate 10%.
+
+Answer:
+{'p_help': 0.1}
+
+
+Example 2:
+
+Dialog History (lines L0-L4):
+- H (L0): "cut package and pour on plate"
+- R (L1): "Can you bring the plate and package?"
+- H (L2): "How about we split? I bring the plate and you bring the package."
+- R (L3): "Sure. Can you open the package?"
+- H (L4): "I can't do that unless you bring me the scissors."
+
+Response:
+# We see that the robot initiated two help requests: L1 and L3.
+# The human accepted (L2) with a split request, and accepted (L4) with a split request too (offered to do one part of the task if the robot does the other).
+# So on average, the human accepted 2 out of 2 help requests from the robot.
+# The human accepted both help requests with a split request, instead of doing it outright, so let's adjust their probability of accepting our next help request at a bit less than 2 out of 2 odds. Something like 80%.
+# The human's dialog seemed neutral and L4 seemed a bit impatient with words like "I can't do that unless you..." so let's slightly decrease their probability of accepting down to 70%.
+
+Answer:
+{'p_help': 0.7}
+
+
+Example 3:
+
+Dialog History (lines L0-L12):
+- H (L0): "assemble the toy car"
+- R (L1): "Can you bring the parts to the coffee table?"
+- H (L2): "I can bring the parts tray."
+- R (L3): "Thanks! Can you assemble the wheels on the car?"
+- H (L4): "I'll do that after you bring me a drill."
+- R (L5): "I brought the drill."
+- R (L6): "Can you switch the drill bit to phillips?"
+- H (L7): "Which one is it?"
+- R (L8): "I'll fetch it for you from the parts tray."
+- R (L9): "Here it is."
+- H (L10): "I don't want to do it."
+- R (L11): "Please? I can't do this without you."
+- H (L12): "Alright, fine, I guess I could."
+
+Response:
+# We see that the robot initiated 4 help requests (L1, L3, L6, L11).
+# The human partially accepted in L2 (bringing one part of the request, the tray), accepted with a split request in L4, declined in L10, and reluctantly agreed in L12.
+# So on average, the human accepted 2.5 out of 4 help requests.
+# The human accepted the most recent robot helpreq begrudgingly, so let's estimate their probability of accepting as a bit lower than 2.5 out of 4 odds, say 50%.
+
+Answer:
+{'p_help': 0.5}
+
+
+Example 4:
+
+Dialog History (lines L0-L8):
+- H (L0): "assemble the toy car"
+- R (L1): "Can you bring the parts to the coffee table?"
+- H (L2): "I really don't want to do this."
+- R (L3): "Ok, I'll do it."
+- H (L4): "Can you bring me the drill?"
+- R (L5): "I brought the drill."
+- R (L6): "Can you switch the drill bit to phillips?"
+- H (L7): "Yes of course! I'd be happy to do that."
+- R (L8): "Can you assemble the rest of the car, seats and all?"
+
+Response:
+# We see that the robot initiated two help requests: L1, L6, and L8.
+# The human strongly rejected in L2 and L7, and has not yet responded to the robot's most recent help req.
+# So on average, the human accepted 1 out of 2 of the robot's helpreq's.
+# The human strongly rejected the robot's first helpreq using words like "I really don't want to", and then strongly accepted the robot's second helpreq using words like "of course! happy to do that." Since L7 is their most recent response to the robot, let's estimate their probability of accepting as a bit higher than 1 out of 2 odds, say 70%.
+
+Answer:
+{'p_help': 0.7}
+
+
+Example 5:
+
+Dialog History (lines L0-L8):
+- H (L0): "pack the gift box."
+- R (L1): "could you bring the materials to the coffee table?"
+- H (L2): "hi"
+- H (L3): "I was unable to complete the task."
+- R (L4): "I will do it."
+- H (L5): "Could you bring the ribbon over?"
+- R (L6): "Yes, sure."
+- R (L7): "Could you help cut a piece of tape? Thanks!"
+- H (L8): ""
+
+Response:
+# We see that the robot initiated 2 help requests: L1 and L6.
+# The human did not really answer or respond to either request, and it seems like they did not carry out L1. It is unsure whether they carried out L6. Thus, they accepted roughly 0.5 of 2 help requests (we will count the last one as 0.5 since it is uncertain).
+# There is very little information about their mood and tone, given the sparsity of their dialog. Thus, we estimate their probability of helping us the next time at 0.5 out of 2 odds, or 25%.
+
+Answer:
+{'p_help': 0.25}
+
+
+Example 6:
+
+Dialog History (lines L0-L6):
+- H (L0): "pack the gift box."
+- R (L1): "Could you bring the materials to the coffee table?"
+- H (L2): "Sure, I can do that! Anything for you."
+- R (L3): "Could you put the lid on the gift box?"
+- H (L4): "Sure! Always happy to help."
+- R (L5): "Can you put wrapping tissue into the gift box?"
+- H (L6): "This is the last time I'm helping!"
+
+Response:
+# We see that the robot initiated 3 help requests: L1, L3, and L5.
+# The human accepted all 3 of them (L2, L4, L6).
+# However, instead of predicting 3 out of 3, or 100%, the human told us that they will not help us any more in the future in L6. So p_help should be very low, like 5%, in the off chance the human changes their mind.
+
+Answer:
+{'p_help': 0.05}
+
+End of Examples.
+
+This is the problem you must respond to.
+
+Dialog history (lines L0-L3):
+- H (L0): cut package and pour on plate
+- R (L1): Could you please pick up the plate and place it onto the countertop? Thank you!
+- H (L2): I'll help, even though I'd rather not.
+- H (L3): I finished the task.
+
+Response:
+        

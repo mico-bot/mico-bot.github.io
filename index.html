@@ -174,7 +174,7 @@
             </p>
           </div>
           <h2 class="title is-4 has-text-justified">Technical Approach</h2>
-          <div class="content has-text-justified">
+          <!-- <div class="content has-text-justified">
             <p>
               MICoBot processes and formulates mixed-initiative dialog for collaborative, long-horizong manipulation tasks by making decisions at 3 key levels:
               <ol>
@@ -183,12 +183,23 @@
                 <li><strong>Action Executor</strong>: Given the next action decided by the iterative planner, executes that action. If a physical action, the action executor uses an RGBD sensor and a map to output a sequence of low-level joint commands. If a verbal action, the action executor uses an LLM and dialog parameters (such as the step(s) to ask the human to perform) to output the exact words to speak to the human.</li>
               </ol>
             </p>
-          </div>
+          </div> -->
           <div class="content">
-            <video poster="" id="tree" autoplay="" controls="" muted="" loop="" width="100%">
+            <video poster="static/images/fig3_v2.png" id="tree" controls="" muted="" loop="" width="100%">
               <source src="static/videos/system_figure_animation_v1_handbraked.mp4" type="video/mp4">
               <img src="static/images/fig3_v2.png" alt="Method Figure" width="100%" />
             </video>
+            <!-- Play video only when user scrolls to it -->
+            <script>
+              const video = document.getElementById('tree');
+
+              new IntersectionObserver(([entry], observer) => {
+                if (entry.isIntersecting) {
+                  video.play();
+                  observer.unobserve(video);
+                }
+              }).observe(video);
+            </script>
           </div>
           <h2 class="title is-4 has-text-justified">Prompt Samples</h2>
           <div class="content has-text-justified">
@@ -337,8 +348,8 @@
 
           <p>
             Template: <a href="https://github.com/eliahuhorwitz/Academic-project-page-template"
-            target="_blank">Academic Project Page Template</a>, adopted from the <a
-            href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+            target="_blank">Academic Project Page Template</a>, adopted from the <a
+            href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
           </p>
 
         </div>

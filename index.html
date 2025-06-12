@@ -139,6 +139,9 @@
       </div>
     </div>
   </section>
+  <section class="hero">
+    <h2 class="title is-4" style="text-align: center; color: blue;">We are wrapping up a web interface for interacting with the model and are working to have it ready to try out by 6/16.</h2>
+  </section>
   <!-- End youtube video -->
   <section class="section">
     <div class="container">
@@ -147,9 +150,11 @@
         <div class="column is-four-fifths is-centered has-text-centered">
           <h2 class="title is-4 has-text-justified" id="mixed-init-dialog-def">What is Mixed-Initiative Dialog?</h2>
           <div class="content has-text-justified">
-            <a href="https://stacks.stanford.edu/file/druid:xr633ts6369/xr633ts6369.pdf">Mixed-initiative dialog</a> is a communication paradigm where both agents (human and robot) are able to ask each other questions, propose ideas, offer suggestions, in addition to responding and negotiating with the other agent.
+            <p><a href="https://stacks.stanford.edu/file/druid:xr633ts6369/xr633ts6369.pdf">Mixed-initiative dialog</a> is a communication paradigm where both agents (human and robot) are able to ask each other questions, propose ideas, offer suggestions, in addition to responding and negotiating with the other agent.</p>
+
+            <p>MICoBot (<strong>M</strong>ixed-<strong>I</strong>nitiative <strong>Co</strong>llaborative Ro<strong>bot</strong>) is the first work to our knowledge to connect <strong>mixed-initiative dialog</strong> to real-world <strong>human-robot interaction</strong>.</p>
           </div>
-          <h2 class="title is-4 has-text-justified">Contributions</h2>
+          <!-- <h2 class="title is-4 has-text-justified">Contributions</h2>
           <div class="content has-text-justified">
             <p>
               MICoBot (<strong>M</strong>ixed-<strong>I</strong>nitiative <strong>Co</strong>llaborative Ro<strong>bot</strong>) is the first work to our knowledge to connect <strong>mixed-initiative dialog</strong> to real-world <strong>human-robot interaction</strong>.
@@ -159,7 +164,7 @@
               <ol>
                 <li>A new <strong>problem setting</strong> that integrates mixed-initiative natural language dialog with mixed-initiative human-robot interaction. We address a realistic scenario in human-robot collaboration where both the robot and the human can initiate dialogs to fulfill a long horizon task, while they can both also perform different parts of the task, as negotiated via dialogs</li>
                 <li>A novel <strong>optimization framework</strong> for task allocation, balancing human and robot effort and success through a unified metric</li>
-                <!-- <li>A new MiniBehavior-based simulator for collaborative household tasks that includes LLM-controlled virtual humans</li> -->
+                <li>A new MiniBehavior-based simulator for collaborative household tasks that includes LLM-controlled virtual humans</li>
                 <li>A <strong>robotic system and hierarchical framework</strong> for mixed-initiative, speech-based human-robot collaboration that flexibly adapts to a wide range of real human collaborators in long-horizon manipulation tasks.</li>
               </ol>
             </p>
@@ -172,7 +177,7 @@
             <p>
               The goal of our robotic system is to <strong>optimally allocate tasks</strong> that <strong>maximize task success rate</strong> while <strong>minimizing human effort</strong> and <strong>comply with any verbally-specified conditions from the human</strong> (such as if the human wants a particular agent to perform a step in the plan).
             </p>
-          </div>
+          </div> -->
           <h2 class="title is-4 has-text-justified">Technical Approach</h2>
           <!-- <div class="content has-text-justified">
             <p>
@@ -307,7 +312,9 @@
           </br>
           <h2 class="title is-5 has-text-justified">Does our method achieve the best trade-off between task success and minimizing human effort?</h2>
           <div class="content has-text-justified">
-            <p>In our real-world user study, MICoBot achieves a 61% task success rate, compared to 0% for the LLM baseline, by leveraging human assistance on 38% of the steps. The LLM baseline underperformed because it prioritized minimizing human effort over task completion—requesting and receiving help in only 10% of steps, even when the robot lacked the capability to execute them. To control for the amount of human effort received, we compare our method to RECB. Despite RECB assuming oracle robot primitives with 100% success, our method still significantly outperforms it.</p>
+            <p>In our real-world user study, MICoBot achieves a 61% task success rate, compared to 0% for the LLM baseline, by leveraging human assistance on 38% of the steps. (Figure on left.)
+              <!-- The LLM baseline underperformed because it prioritized minimizing human effort over task completion—requesting and receiving help in only 10% of steps, even when the robot lacked the capability to execute them. To control for the amount of human effort received, we compare our method to RECB. Despite RECB assuming oracle robot primitives with 100% success, our method still significantly outperforms it. -->
+            </p>
           </div>
           <h2 class="title is-5 has-text-justified">How do users feel about working with our system?</h2>
           <div class="content has-text-justified">
@@ -317,7 +324,7 @@
 
           <h2 class="title is-5 has-text-justified">Is mixed-initiative dialog critical to our method's performance?</h2>
           <div class="content has-text-justified">
-            <p>The ablations in simulation demonstrate our full method outperforms both ablated variants that restrict dialog to single-initiative modes: robot-only initiation (R-init) and human-only initiation (H-init). H-init performs especially poorly, as it prevents the robot from requesting help for steps it cannot execute. R-init performs slightly worse than the full method because it does not allow the human to proactively initiate dialog and assist when appropriate. These results underscore the importance of mixed-initiative dialog in enabling flexible, robust human-robot collaboration.
+            <p>The ablations in simulation demonstrate our full method outperforms both ablated variants that restrict dialog to single-initiative modes: robot-only initiation (R-init) and human-only initiation (H-init). (Figure on right.) These results underscore the importance of mixed-initiative dialog in enabling flexible, robust human-robot collaboration.
             </p>
           </div>
         </div>

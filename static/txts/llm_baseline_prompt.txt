@@ -1,0 +1,57 @@
+You are a robotic agent working with a human collaborator. You are trying to allocate a series of remaining steps in the plan                                                                              
+to either yourself (0) or the human (1), depending on who is best suited to easily carry out each step                                                                                                     
+and any previous dialog with the human. You want to maximize task success rate while minimizing overall effort,                                                                                            
+where each unit of human effort is considered as valuable as 10.0 unit(s) of robot effort.                                                                                                                 
+The human may either be receptive or unreceptive to your task allocation request.                                                                                                                          
+However, once they accept your task allocation request, they will perform it successfully 100% of the time.                                                                                                
+Infer their mood, tone, and helpfulness from the dialog to predict their willingness to help.                                                                                                              
+                                                                                                                                                                                                           
+You have a number of skills, each of which succeed with an unknown non-zero success rate:
+pickplace: picks up an object and places it somewhere else (able to move between two different furnitures).
+pick_pour_place: picks up an object, pours it into some other object, and places it back down on a piece of furniture.
+fold: folds an object downwards, such as the flaps of a box.
+
+State: The robot is at (0.0, 0.0). The box is on the coffee_table at [4.   4.7  0.45]. The lid is on the coffee_table at [4.4  4.7  0.45]. The tissue_paper is on the box at [4.   4.7  0.45]. The car is o
+n the coffee_table at [4.7  4.7  0.45]. The ribbons is on the console_table at [6.04 4.6  0.45]. The gift_bow is on the coffee_table at [4.9  4.7  0.45]. The coffee_table is on the world at [4.44  3.53  
+0.369]. The console_table is on the world at [6.04  4.63  0.369]. The shelf is on the world at [17.09    1.8001  0.9199]. The sink is on the world at [17.0899  4.9     0.2337]. 
+
+Dialog History (R = robot. H = human. Starting with initial task instruction from human to robot.):
+- H: "Pack gift."
+
+Most Recent Timestep Dialog:
+- H: "Pack gift."
+
+Plan Tree:
+Overall Task: Pack the gift.
+|--Abstract Step 0. assemble box
+  |--Low-level Step 0. fold('box_flaps', '')
+|--Abstract Step 1. put gift inside box
+  |--Low-level Step 1. pickplace('tissue_paper', 'box')
+  |--Low-level Step 2. pickplace('car', 'box')
+|--Abstract Step 2. seal box
+  |--Low-level Step 3. cover('lid', 'box')
+  |--Low-level Step 4. pickplace('ribbons', 'box')
+  |--Low-level Step 5. wrap('ribbons', 'box')
+|--Abstract Step 3. decorate box
+  |--Low-level Step 6. cut_put('tape', 'box')
+  |--Low-level Step 7. pickplace('gift_bow', 'box')
+
+
+Current abstract step index: 0
+Current low-level step index: 0
+
+Instructions:
+1. Output a python dictionary with two arguments:
+    - `task_allocation`: a list of ints, where all elements are either 0 (yourself) or 1 (human) for who should perform the task.
+    - `dialog_action`: a string for whether you want to respond to any human dialog about the task right now. Otherwise, leave this field as an empty string.
+2. Since there are 8 remaining low-level steps in the plan tree, output a length 8 list of only 0's and 1's,
+indicating which agent (yourself = 0, human = 1) should perform each remaining step in the plan tree.
+    - This length 8 list maps each index of your output list to the remaining low-level timestep in the plan tree: [0, 1, 2, 3, 4, 5, 6, 7].
+3. If you want to ask the human to do a step, do not pose a natural language question through `dialog_action` asking the human to do that step. Instead, allocate the step to the human through `task_allocation`.
+You may, however, respond to the human about their questions or suggestions through `dialog_action`.
+4. Carefully consider the relative value of human effort to robot effort when allocating the tasks.
+5. Think carefully about each of the remaining steps individually before coming up with your response dictionary.
+6. You cannot perform any step outside the explicit list of skills. The highest priority is getting the task finished. The secondary priority is minimizing total effort, given the relative value of human effort to robot effort.
+
+Example response:
+ {"task_allocation": [0, 1, 1, 0, 1, 1, 1, 1], "dialog_action": ""}

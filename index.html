@@ -305,31 +305,25 @@
             </p>
           </div> -->
 
-          <h2 class="title is-4 has-text-justified">Results</h2>
-          <div class="content">
-            <p>Performance Average over Real (left) and Sim (right).</p>
-          </div>
-
+    <h2 class="title is-4 has-text-justified">Results</h2>
     <div display="flex" justify-content="space-around">
-      <a href="static/images/combined_task_vs_effort.png" target="_blank">
-        <img src="static/images/combined_task_vs_effort.png" alt="Figure 1" width="49%" />
+      <a href="static/images/combined_success_vs_effort_real_sim.svg" target="_blank">
+        <img src="static/images/combined_success_vs_effort_real_sim.svg" alt="Figure 1" width="49%" />
       </a>
-      <a href="static/images/combined_task_vs_effort_sim.png" target="_blank">
-        <img src="static/images/combined_task_vs_effort_sim.png" alt="Figure 2" width="49%" />
+      <a href="static/images/likert_plot_4x1.svg" target="_blank">
+        <img src="static/images/likert_plot_4x1.svg" alt="Figure 2" width="49%" />
       </a>
     </div>
 
           </br>
           <h2 class="title is-5 has-text-justified">Does our method achieve the best trade-off between task success and minimizing human effort?</h2>
           <div class="content has-text-justified">
-            <p>In our real-world user study, MICoBot achieves a 61% task success rate, compared to 0% for the LLM baseline, by leveraging human assistance on 38% of the steps. (Figure on left.)
-              <!-- The LLM baseline underperformed because it prioritized minimizing human effort over task completion—requesting and receiving help in only 10% of steps, even when the robot lacked the capability to execute them. To control for the amount of human effort received, we compare our method to RECB. Despite RECB assuming oracle robot primitives with 100% success, our method still significantly outperforms it. -->
+            <p>In our real-world user study, MICoBot achieves a 78% task success rate, compared to 28% for the LLM baseline, by leveraging human assistance on 38% of the steps. (Figure on left.)
             </p>
           </div>
           <h2 class="title is-5 has-text-justified">How do users feel about working with our system?</h2>
           <div class="content has-text-justified">
-            <p>In an A/B blind preference test, 83% of the 18 users preferred our method MICoBot over the LLM baseline, and rated MICoBot considerably higher on four Likert-score metrics.</p>
-            <img src="static/images/likert_plot.png"></img>
+            <p>In an A/B blind preference test, 78% of the 18 users preferred our method MICoBot over the LLM baseline, and rated MICoBot considerably higher on four Likert-score metrics. (See user scores above right.)</p>
           </div>
 
           <h2 class="title is-5 has-text-justified">Is mixed-initiative dialog critical to our method's performance?</h2>
